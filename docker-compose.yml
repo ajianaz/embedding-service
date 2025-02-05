@@ -3,6 +3,7 @@ version: "3.8"
 services:
   embedding_service:
     build: .
+    image: ghcr.io/ajianaz/embedding-service:latest
     container_name: embedding_service
     ports:
       - "5001:5001"

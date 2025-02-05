@@ -1,19 +1,23 @@
-# Gunakan Python 3.9
-FROM python:3.9-slim
+# Stage 1: Build
+FROM python:3.9-slim as builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy dan install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy kode aplikasi ke dalam container
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Final Image
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+
 COPY . .
 
-# Expose port untuk aplikasi
 EXPOSE 5001
 
-# Jalankan aplikasi menggunakan gunicorn
-# CMD ["gunicorn", "-w", "${WORKERS:-2}", "-b", "0.0.0.0:5001", "app.embedder:app"]
+ENV WORKERS=1
+
 CMD ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
