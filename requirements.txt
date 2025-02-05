@@ -1,4 +1,4 @@
 flask
 sentence-transformers
 gunicorn
-torch==2.1.0+cpu
+torch==2.0.1+cpu
