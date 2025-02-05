@@ -5,7 +5,9 @@ services:
     build: .
     container_name: embedding_service
     ports:
-      - "5002:5001"
+      - "5001:5001"
     volumes:
-      - ./app:/app  # Sinkronisasi folder `app` dengan container
-    restart: always
+      - .:/app  # Sinkronisasi folder `app` dengan container
+    environment:
+      - WORKERS=1
+    command: ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
