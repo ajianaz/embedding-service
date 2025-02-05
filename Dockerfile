@@ -15,5 +15,5 @@ COPY . .
 EXPOSE 5001
 
 # Jalankan aplikasi menggunakan gunicorn
-CMD ["gunicorn", "-w", "${WORKERS:-2}", "-b", "0.0.0.0:5001", "app.embedder:app"]
-# CMD ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
+# CMD ["gunicorn", "-w", "${WORKERS:-2}", "-b", "0.0.0.0:5001", "app.embedder:app"]
+CMD ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
