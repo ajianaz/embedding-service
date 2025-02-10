@@ -1,0 +1,32 @@
+name: Build and Push Docker Image (embed-add-qdrant with all-MiniLM-L6-v2 model)
+
+on:
+  push:
+    branches:
+      - embed-add-qdrant
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set Version
+        run: |
+          VERSION=${{ secrets.VERSION || '0.0.1' }}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build Docker Image with Multiple Tags
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/embedding-service:embed-add-qdrant-$VERSION -t ghcr.io/${{ github.actor }}/embedding-service:embed-add-qdrant .
+
+      - name: Push Docker Image with Version Tag
+        run: docker push ghcr.io/${{ github.actor }}/embedding-service:embed-add-qdrant-$VERSION
+
+      - name: Push Docker Image with Branch Tag
+        run: docker push ghcr.io/${{ github.actor }}/embedding-service:embed-add-qdrant
