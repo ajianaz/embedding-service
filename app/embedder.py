@@ -3,7 +3,7 @@ import uuid
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
+from qdrant_client.models import PointStruct, Distance, VectorParams
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,6 +26,22 @@ if QDRANT_ENABLE:
 # Inisialisasi Flask dan model embedding
 app = Flask(__name__)
 model = SentenceTransformer("all-MiniLM-L6-v2")
+VECTOR_SIZE = 384  # Sesuaikan dengan dimensi model embedding
+
+
+def ensure_collection_exists(collection_name):
+    """Memastikan koleksi ada di Qdrant, jika tidak ada maka buat baru."""
+    if not QDRANT_ENABLE or not qdrant_client:
+        return
+
+    existing_collections = qdrant_client.get_collections().collections
+    collection_names = [col.name for col in existing_collections]
+
+    if collection_name not in collection_names:
+        qdrant_client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
+        )
 
 
 def chunk_text(text, chunk_size=256, overlap=50):
@@ -45,6 +61,8 @@ def save_to_qdrant(embedding, text, payload, collection_name="qdrant_messages"):
     if not QDRANT_ENABLE or not qdrant_client:
         return
     
+    ensure_collection_exists(collection_name)  # Pastikan koleksi ada sebelum menyimpan
+
     point_id = str(uuid.uuid4())  # Generate UUID v4 untuk ID unik
     
     qdrant_client.upsert(
@@ -64,6 +82,8 @@ def search_in_qdrant(text, top_k=3, collection_name="qdrant_messages"):
     if not QDRANT_ENABLE or not qdrant_client:
         return []
     
+    ensure_collection_exists(collection_name)  # Pastikan koleksi ada sebelum pencarian
+
     chunks = chunk_text(text)
     results = []
 
@@ -126,5 +146,5 @@ def search():
     return jsonify({"results": results})
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=5001, debug=True)
