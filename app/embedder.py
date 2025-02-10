@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
-from app.utils import chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
+from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
 
 app = Flask(__name__)
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -41,5 +41,11 @@ def search():
 
     return jsonify({"results": results})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+# Cek koneksi ke Qdrant saat pertama kali dijalankan
+if test_qdrant_connection():
+    logger.info("Qdrant is ready to use")
+else:
+    logger.warning("Qdrant is not available, some features may not work")
+
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=5001, debug=True)

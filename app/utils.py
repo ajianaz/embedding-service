@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 QDRANT_ENABLE = os.getenv("QDRANT_ENABLE", "False").lower() == "true"
-QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+QDRANT_HOST = os.getenv("QDRANT_HOST", "qdrant")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)  # API Key if used
 DEFAULT_COLLECTION = os.getenv("DEFAULT_COLLECTION", "qdrant_messages")
@@ -26,26 +26,42 @@ DEFAULT_COLLECTION = os.getenv("DEFAULT_COLLECTION", "qdrant_messages")
 qdrant_client = None
 if QDRANT_ENABLE:
     try:
-        # Determine if the host includes a scheme (http:// or https://)
-        if QDRANT_HOST.startswith("http://") or QDRANT_HOST.startswith("https://"):
-            # Use the URL directly
-            qdrant_client = QdrantClient(
-                url=QDRANT_HOST,
-                api_key=QDRANT_API_KEY
-            )
+        # Tentukan protokol berdasarkan apakah API key digunakan atau tidak
+        if QDRANT_API_KEY:
+            if not QDRANT_HOST.startswith("https://"):
+                raise ValueError("❌ QDRANT_API_KEY detected, but QDRANT_HOST must use HTTPS")
+            scheme = "https"
         else:
-            # Construct the URL based on the presence of an API key
-            scheme = "https" if QDRANT_API_KEY else "http"
-            qdrant_client = QdrantClient(
-                url=f"{scheme}://{QDRANT_HOST}:{QDRANT_PORT}",
-                api_key=QDRANT_API_KEY
-            )
+            scheme = "http"
 
-        # Test the connection
+        # Jika QDRANT_HOST sudah punya skema (http/https), gunakan langsung
+        if QDRANT_HOST.startswith("http://") or QDRANT_HOST.startswith("https://"):
+            qdrant_url = QDRANT_HOST
+        else:
+            qdrant_url = f"{scheme}://{QDRANT_HOST}:{QDRANT_PORT}"
+
+        # Inisialisasi Qdrant Client
+        qdrant_client = QdrantClient(url=qdrant_url, api_key=QDRANT_API_KEY or None)
+
+        # Tes koneksi
         qdrant_client.get_collections()
-        logger.info("✅ Qdrant connection established")
+        logger.info(f"✅ Connected to Qdrant at {qdrant_url}")
     except Exception as e:
         logger.error(f"❌ Failed to connect to Qdrant: {e}")
+        qdrant_client = None
+
+def test_qdrant_connection():
+    if qdrant_client is None:
+        logger.error("❌ Qdrant client is not initialized")
+        return False
+
+    try:
+        qdrant_client.get_collections()
+        logger.info("✅ Qdrant connection test successful")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Qdrant connection test failed: {e}")
+        return False
 
 # Fungsi untuk membuat collection jika belum ada
 def ensure_collection_exists(collection_name, vector_size):
