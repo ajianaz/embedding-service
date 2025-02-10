@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   embedding_service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ghcr.io/ajianaz/embedding-service:latest
     container_name: embedding_service
     ports:

@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
-from utils import chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
+from app.utils import chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
 
 app = Flask(__name__)
 model = SentenceTransformer("all-MiniLM-L6-v2")
