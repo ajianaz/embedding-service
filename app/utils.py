@@ -15,22 +15,33 @@ FLASK_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() == "true"
 logging.basicConfig(level=logging.DEBUG if FLASK_DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Qdrant Config
+# Load environment variables
 QDRANT_ENABLE = os.getenv("QDRANT_ENABLE", "False").lower() == "true"
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)  # API Key jika digunakan
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)  # API Key if used
 DEFAULT_COLLECTION = os.getenv("DEFAULT_COLLECTION", "qdrant_messages")
 
-# Inisialisasi Qdrant jika diaktifkan
+# Initialize Qdrant client if enabled
 qdrant_client = None
 if QDRANT_ENABLE:
     try:
-        qdrant_client = QdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            api_key=QDRANT_API_KEY if QDRANT_API_KEY else None
-        )
+        # Determine if the host includes a scheme (http:// or https://)
+        if QDRANT_HOST.startswith("http://") or QDRANT_HOST.startswith("https://"):
+            # Use the URL directly
+            qdrant_client = QdrantClient(
+                url=QDRANT_HOST,
+                api_key=QDRANT_API_KEY
+            )
+        else:
+            # Construct the URL based on the presence of an API key
+            scheme = "https" if QDRANT_API_KEY else "http"
+            qdrant_client = QdrantClient(
+                url=f"{scheme}://{QDRANT_HOST}:{QDRANT_PORT}",
+                api_key=QDRANT_API_KEY
+            )
+
+        # Test the connection
         qdrant_client.get_collections()
         logger.info("✅ Qdrant connection established")
     except Exception as e:
