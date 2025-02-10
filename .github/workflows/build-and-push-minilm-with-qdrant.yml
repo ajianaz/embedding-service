@@ -18,7 +18,7 @@ jobs:
 
       - name: Set Version
         run: |
-          VERSION=${{ secrets.VERSION || '0.0.2' }}
+          VERSION=${{ secrets.VERSION || '0.0.3' }}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Build Docker Image with Multiple Tags
