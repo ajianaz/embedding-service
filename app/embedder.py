@@ -96,5 +96,6 @@ def search():
     return jsonify({"results": [r.payload for r in results]})
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+# Comment if want build docker image
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=5001, debug=True)
