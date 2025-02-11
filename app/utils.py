@@ -21,6 +21,7 @@ QDRANT_HOST = os.getenv("QDRANT_HOST", "qdrant")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)  # API Key if used
 DEFAULT_COLLECTION = os.getenv("DEFAULT_COLLECTION", "qdrant_messages")
+PREFER_GRPC = os.getenv("PREFER_GRPC", "False").lower() == "true"
 
 # Initialize Qdrant client if enabled
 qdrant_client = None
@@ -44,7 +45,7 @@ if QDRANT_ENABLE:
         qdrant_client = QdrantClient(
             url=qdrant_url,
             api_key=QDRANT_API_KEY or None,
-            prefer_grpc=False
+            prefer_grpc=PREFER_GRPC
         )
 
         # Tes koneksi
