@@ -27,21 +27,25 @@ qdrant_client = None
 if QDRANT_ENABLE:
     try:
         # Tentukan protokol berdasarkan apakah API key digunakan atau tidak
-        if QDRANT_API_KEY:
-            if not QDRANT_HOST.startswith("https://"):
-                raise ValueError("❌ QDRANT_API_KEY detected, but QDRANT_HOST must use HTTPS")
-            scheme = "https"
-        else:
-            scheme = "http"
+        # if QDRANT_API_KEY:
+        #     if not QDRANT_HOST.startswith("https://"):
+        #         raise ValueError("❌ QDRANT_API_KEY detected, but QDRANT_HOST must use HTTPS")
+        #     scheme = "https"
+        # else:
+        #     scheme = "http"
 
         # Jika QDRANT_HOST sudah punya skema (http/https), gunakan langsung
         if QDRANT_HOST.startswith("http://") or QDRANT_HOST.startswith("https://"):
             qdrant_url = QDRANT_HOST
         else:
-            qdrant_url = f"{scheme}://{QDRANT_HOST}:{QDRANT_PORT}"
+            qdrant_url = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
         # Inisialisasi Qdrant Client
-        qdrant_client = QdrantClient(url=qdrant_url, api_key=QDRANT_API_KEY or None)
+        qdrant_client = QdrantClient(
+            url=qdrant_url,
+            api_key=QDRANT_API_KEY or None,
+            prefer_grpc=False
+        )
 
         # Tes koneksi
         qdrant_client.get_collections()
