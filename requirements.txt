@@ -1,3 +1,6 @@
 flask
 sentence-transformers
 gunicorn
+qdrant-client
+python-dotenv
+uuid
