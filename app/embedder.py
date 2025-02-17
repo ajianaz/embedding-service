@@ -3,8 +3,22 @@ from sentence_transformers import SentenceTransformer
 from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
 
 app = Flask(__name__)
-model = SentenceTransformer("all-MiniLM-L6-v2")
+MODEL_NAME = "all-MiniLM-L6-v2"
+model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
+
+@app.route("/v1/models", methods=["GET"])
+def list_models():
+    return jsonify({
+        "object": "list",
+        "data": [
+            {
+                "id": MODEL_NAME,
+                "object": "model",
+                "owned_by": "ajianaz-dev"
+            }
+        ]
+    })
 
 @app.route("/v1/embeddings", methods=["POST"])
 def embed():
