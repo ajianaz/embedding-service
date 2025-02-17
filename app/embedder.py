@@ -9,6 +9,7 @@ model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
 API_KEY = os.getenv("API_KEY", "$2a$10$8E2cnsRvDhLnjxvQK7AJlujKNu324RkimgYJrZ8CeBJ7z1vMH0sJu")
 DEFAULT_CHUNK = os.getenv("DEFAULT_CHUNK", "false").lower() == "true"
+DEFAULT_SAVE_QDRANT = os.getenv("DEFAULT_SAVE_QDRANT", "false").lower() == "true"
 
 @app.route("/v1/models", methods=["GET"])
 def list_models():
@@ -45,10 +46,15 @@ def embed():
     chunk_size = data.get("chunk_size", 256)
     overlap = data.get("overlap", 50)
 
-    # Ambil opsi chunk, default dari environment variable (DEFAULT_CHUNK)
+    # Opsi chunking, default dari env
     chunk_enabled = data.get("chunk", DEFAULT_CHUNK)
     if isinstance(chunk_enabled, str):
         chunk_enabled = chunk_enabled.lower() == "true"
+
+    # Opsi penyimpanan ke Qdrant, default dari env
+    save_enabled = data.get("save_to_qdrant", DEFAULT_SAVE_QDRANT)
+    if isinstance(save_enabled, str):
+        save_enabled = save_enabled.lower() == "true"
 
     embeddings_results = []
     index = 0
@@ -67,7 +73,6 @@ def embed():
             chunks = [text]
 
         try:
-            # Proses embedding untuk tiap chunk
             for chunk in chunks:
                 embedding = model.encode(chunk).tolist()
                 embeddings_results.append({
@@ -75,8 +80,11 @@ def embed():
                     "embedding": embedding,
                     "index": index
                 })
-                # Simpan ke Qdrant
-                save_to_qdrant(embedding, chunk, collection_name, payload)
+                if save_enabled:
+                    try:
+                        save_to_qdrant(embedding, chunk, collection_name, payload)
+                    except Exception as e:
+                        return jsonify({"error": "Failed to save embeddings to Qdrant", "details": str(e)}), 500
                 index += 1
         except Exception as e:
             return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
