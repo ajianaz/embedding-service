@@ -36,14 +36,30 @@ def embed():
     chunk_size = data.get("chunk_size", 256)
     overlap = data.get("overlap", 50)
 
+    if not isinstance(input_text, str):
+        return jsonify({"error": "Input text must be a string"}), 400
+
     if not input_text:
         return jsonify({"error": "Input text is required"}), 400
 
-    chunks = chunk_text(input_text, chunk_size, overlap)
-    embeddings = [model.encode(chunk).tolist() for chunk in chunks]
+    try:
+        # Proses chunking
+        chunks = chunk_text(input_text, chunk_size, overlap)
+    except Exception as e:
+        return jsonify({"error": "Failed to chunk text", "details": str(e)}), 500
 
-    for i, chunk in enumerate(chunks):
-        save_to_qdrant(embeddings[i], chunk, collection_name, payload)
+    try:
+        # Proses embedding
+        embeddings = [model.encode(chunk).tolist() for chunk in chunks]
+    except Exception as e:
+        return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
+
+    try:
+        # Simpan ke Qdrant
+        for i, chunk in enumerate(chunks):
+            save_to_qdrant(embeddings[i], chunk, collection_name, payload)
+    except Exception as e:
+        return jsonify({"error": "Failed to save embeddings to Qdrant", "details": str(e)}), 500
 
     return jsonify({
         "object": "list",

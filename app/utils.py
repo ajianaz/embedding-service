@@ -86,10 +86,15 @@ def ensure_collection_exists(collection_name, vector_size):
 
 # Fungsi untuk chunking teks
 def chunk_text(text, chunk_size=256, overlap=50, separator=" "):
+    if not isinstance(text, str):
+        raise ValueError("Expected text to be a string, but got {}".format(type(text)))
+
     words = text.split(separator)
     chunks = []
+    
     for i in range(0, len(words), chunk_size - overlap):
         chunks.append(separator.join(words[i:i + chunk_size]))
+    
     return chunks
 
 # Fungsi untuk menyimpan embedding ke Qdrant
