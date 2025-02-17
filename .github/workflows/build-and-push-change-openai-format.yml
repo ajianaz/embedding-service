@@ -1,0 +1,32 @@
+name: Build and Push Docker Image (change-openai-format with all-MiniLM-L6-v2 model)
+
+on:
+  push:
+    branches:
+      - change-openai-format
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set Version
+        run: |
+          VERSION=${{ secrets.VERSION || '0.0.3' }}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build Docker Image with Multiple Tags
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/embedding-service:change-openai-format-$VERSION -t ghcr.io/${{ github.actor }}/embedding-service:change-openai-format .
+
+      - name: Push Docker Image with Version Tag
+        run: docker push ghcr.io/${{ github.actor }}/embedding-service:change-openai-format-$VERSION
+
+      - name: Push Docker Image with Branch Tag
+        run: docker push ghcr.io/${{ github.actor }}/embedding-service:change-openai-format

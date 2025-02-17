@@ -4,33 +4,33 @@ from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search
 
 app = Flask(__name__)
 model = SentenceTransformer("all-MiniLM-L6-v2")
-VECTOR_SIZE = model.get_sentence_embedding_dimension()  # Pastikan ini benar
+VECTOR_SIZE = model.get_sentence_embedding_dimension()
 
-@app.route("/embed", methods=["POST"])
+@app.route("/v1/embeddings", methods=["POST"])
 def embed():
     data = request.json
-    text = data.get("text", "")
-    collection_name = data.get("collection_name", DEFAULT_COLLECTION)
-    payload = data.get("payload", {})
+    input_text = data.get("input", "")
+    collection_name = data.get("collection", DEFAULT_COLLECTION)
+    payload = data.get("metadata", {})
+    chunk_size = data.get("chunk_size", 256)
+    overlap = data.get("overlap", 50)
 
-    if not text:
-        return jsonify({"error": "Text is required"}), 400
+    if not input_text:
+        return jsonify({"error": "Input text is required"}), 400
 
-    # Proses chunking jika teks panjang
-    chunks = chunk_text(text)
+    chunks = chunk_text(input_text, chunk_size, overlap)
     embeddings = [model.encode(chunk).tolist() for chunk in chunks]
 
-    # Simpan ke Qdrant jika diaktifkan
     for i, chunk in enumerate(chunks):
         save_to_qdrant(embeddings[i], chunk, collection_name, payload)
 
-    return jsonify({"embeddings": embeddings})
+    return jsonify({"object": "embedding", "data": embeddings})
 
-@app.route("/search", methods=["POST"])
+@app.route("/v1/search", methods=["POST"])
 def search():
     data = request.json
     query = data.get("query", "")
-    collection_name = data.get("collection_name", DEFAULT_COLLECTION)
+    collection_name = data.get("collection", DEFAULT_COLLECTION)
     top_k = int(data.get("top_k", 3))
 
     if not query:
@@ -39,9 +39,13 @@ def search():
     query_embedding = model.encode([query])[0].tolist()
     results = search_in_qdrant(query_embedding, collection_name, top_k)
 
-    return jsonify({"results": results})
+    formatted_results = [
+        {"object": "search_result", "score": res["score"], "text": res["text"]} 
+        for res in results
+    ]
 
-# Cek koneksi ke Qdrant saat pertama kali dijalankan
+    return jsonify({"object": "list", "data": formatted_results})
+
 if test_qdrant_connection():
     logger.info("Qdrant is ready to use")
 else:
