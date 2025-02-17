@@ -1,0 +1,115 @@
+openapi: 3.0.3
+info:
+  title: Qdrant Embedding API
+  version: "1.0.0"
+  description: |
+    This API provides endpoints to generate embeddings from text using SentenceTransformer and to perform similarity searches in Qdrant.
+
+    **Note:** If you use our free service, your data will automatically be collected.
+servers:
+  - url: http://localhost:5001
+paths:
+  /embed:
+    post:
+      summary: Generate Embeddings and Save to Qdrant
+      description: |
+        This endpoint accepts a text input along with an optional collection name and payload.
+        The text will be chunked (if long), each chunk will be embedded, and then saved in Qdrant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbedRequest'
+      responses:
+        '200':
+          description: Embeddings generated and saved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbedResponse'
+        '400':
+          description: Invalid request (e.g. text is missing).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /search:
+    post:
+      summary: Search for Similar Text Using Embeddings
+      description: |
+        This endpoint accepts a query text, converts it to an embedding, and performs a search in Qdrant
+        to return the top matching results.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Invalid request (e.g. query is missing).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    EmbedRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to be embedded.
+        collection_name:
+          type: string
+          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
+        payload:
+          type: object
+          description: Additional payload data to be saved with the embedding.
+      required:
+        - text
+    EmbedResponse:
+      type: object
+      properties:
+        embeddings:
+          type: array
+          description: A list of embeddings generated for each text chunk. Each embedding is an array of numbers.
+          items:
+            type: array
+            items:
+              type: number
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The query text for similarity search.
+        collection_name:
+          type: string
+          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
+        top_k:
+          type: integer
+          description: The number of top results to return (default: 3).
+      required:
+        - query
+    SearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          description: An array of search results (e.g. texts extracted from payload).
+          items:
+            type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: The error message.

@@ -8,7 +8,7 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
 API_KEY = os.getenv("API_KEY", "$2a$10$8E2cnsRvDhLnjxvQK7AJlujKNu324RkimgYJrZ8CeBJ7z1vMH0sJu")
-
+DEFAULT_CHUNK = os.getenv("DEFAULT_CHUNK", "false").lower() == "true"
 
 @app.route("/v1/models", methods=["GET"])
 def list_models():
@@ -36,17 +36,21 @@ def embed():
     chunk_size = data.get("chunk_size", 256)
     overlap = data.get("overlap", 50)
 
+    chunk_enabled = data.get("chunk", DEFAULT_CHUNK)
     if not isinstance(input_text, str):
         return jsonify({"error": "Input text must be a string"}), 400
 
     if not input_text:
         return jsonify({"error": "Input text is required"}), 400
 
-    try:
-        # Proses chunking
-        chunks = chunk_text(input_text, chunk_size, overlap)
-    except Exception as e:
-        return jsonify({"error": "Failed to chunk text", "details": str(e)}), 500
+    # Jika chunking diaktifkan, pecah teks; jika tidak, proses teks utuh
+    if chunk_enabled:
+        try:
+            chunks = chunk_text(input_text, chunk_size, overlap)
+        except Exception as e:
+            return jsonify({"error": "Failed to chunk text", "details": str(e)}), 500
+    else:
+        chunks = [input_text]
 
     try:
         # Proses embedding
@@ -86,7 +90,7 @@ def search():
     results = search_in_qdrant(query_embedding, collection_name, top_k)
 
     formatted_results = [
-        {"object": "search_result", "score": res["score"], "text": res["text"]} 
+        {"object": "search_result", "score": res["score"], "text": res["text"]}
         for res in results
     ]
 
