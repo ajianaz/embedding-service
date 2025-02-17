@@ -30,47 +30,62 @@ def embed():
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.json
+
+    # Mendukung input berupa string atau list
     input_text = data.get("input", "")
+    if isinstance(input_text, list):
+        texts = input_text
+    elif isinstance(input_text, str):
+        texts = [input_text]
+    else:
+        return jsonify({"error": "Input text must be a string or list of strings"}), 400
+
     collection_name = data.get("collection", DEFAULT_COLLECTION)
     payload = data.get("metadata", {})
     chunk_size = data.get("chunk_size", 256)
     overlap = data.get("overlap", 50)
 
+    # Ambil opsi chunk, default dari environment variable (DEFAULT_CHUNK)
     chunk_enabled = data.get("chunk", DEFAULT_CHUNK)
-    if not isinstance(input_text, str):
-        return jsonify({"error": "Input text must be a string"}), 400
+    if isinstance(chunk_enabled, str):
+        chunk_enabled = chunk_enabled.lower() == "true"
 
-    if not input_text:
-        return jsonify({"error": "Input text is required"}), 400
+    embeddings_results = []
+    index = 0
 
-    # Jika chunking diaktifkan, pecah teks; jika tidak, proses teks utuh
-    if chunk_enabled:
+    for text in texts:
+        if not isinstance(text, str):
+            return jsonify({"error": "Each input must be a string"}), 400
+
+        # Proses chunking jika diaktifkan
+        if chunk_enabled:
+            try:
+                chunks = chunk_text(text, chunk_size, overlap)
+            except Exception as e:
+                return jsonify({"error": "Failed to chunk text", "details": str(e)}), 500
+        else:
+            chunks = [text]
+
         try:
-            chunks = chunk_text(input_text, chunk_size, overlap)
+            # Proses embedding untuk tiap chunk
+            for chunk in chunks:
+                embedding = model.encode(chunk).tolist()
+                embeddings_results.append({
+                    "object": "embedding",
+                    "embedding": embedding,
+                    "index": index
+                })
+                # Simpan ke Qdrant
+                save_to_qdrant(embedding, chunk, collection_name, payload)
+                index += 1
         except Exception as e:
-            return jsonify({"error": "Failed to chunk text", "details": str(e)}), 500
-    else:
-        chunks = [input_text]
-
-    try:
-        # Proses embedding
-        embeddings = [model.encode(chunk).tolist() for chunk in chunks]
-    except Exception as e:
-        return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
-
-    try:
-        # Simpan ke Qdrant
-        for i, chunk in enumerate(chunks):
-            save_to_qdrant(embeddings[i], chunk, collection_name, payload)
-    except Exception as e:
-        return jsonify({"error": "Failed to save embeddings to Qdrant", "details": str(e)}), 500
+            return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
 
     return jsonify({
         "object": "list",
-        "data": [
-            {"object": "embedding", "embedding": emb, "index": i} for i, emb in enumerate(embeddings)
-        ]
+        "data": embeddings_results
     })
+
 
 @app.route("/v1/search", methods=["POST"])
 def search():
