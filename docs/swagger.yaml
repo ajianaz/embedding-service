@@ -8,13 +8,120 @@ info:
     **Note:** If you use our free service, your data will automatically be collected.
 servers:
   - url: http://localhost:5001
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+  schemas:
+    EmbedRequest:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          description: The text to be embedded (a single string or a list of strings).
+        collection:
+          type: string
+          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
+        metadata:
+          type: object
+          description: Additional metadata to be saved with each embedding.
+        chunk:
+          type: boolean
+          description: Enable text chunking if set to true (default: false, can be set via environment variable).
+        chunk_size:
+          type: integer
+          description: The size of each text chunk (default: 256).
+        overlap:
+          type: integer
+          description: The number of overlapping words between chunks (default: 50).
+        save_to_qdrant:
+          type: boolean
+          description: Save embeddings to Qdrant if set to true (default: false, can be set via environment variable).
+      required:
+        - input
+    Embedding:
+      type: object
+      properties:
+        object:
+          type: string
+          description: The object type (should be "embedding").
+        embedding:
+          type: array
+          items:
+            type: number
+          description: An array of numbers representing the embedding.
+        index:
+          type: integer
+          description: The sequential index of the embedding.
+    EmbedResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          description: The response object type (should be "list").
+        data:
+          type: array
+          description: A list of embeddings generated for the input.
+          items:
+            $ref: '#/components/schemas/Embedding'
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The query text for similarity search.
+        collection:
+          type: string
+          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
+        top_k:
+          type: integer
+          description: The number of top results to return (default: 3).
+      required:
+        - query
+    SearchResult:
+      type: object
+      properties:
+        object:
+          type: string
+          description: The result object type (should be "search_result").
+        score:
+          type: number
+          description: The similarity score.
+        text:
+          type: string
+          description: The text extracted from the stored metadata.
+    SearchResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          description: The response object type (should be "list").
+        data:
+          type: array
+          description: A list of search results.
+          items:
+            $ref: '#/components/schemas/SearchResult'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: The error message.
 paths:
-  /embed:
+  /v1/embeddings:
     post:
-      summary: Generate Embeddings and Save to Qdrant
+      summary: Generate Embeddings and (optionally) Save to Qdrant
       description: |
-        This endpoint accepts a text input along with an optional collection name and payload.
-        The text will be chunked (if long), each chunk will be embedded, and then saved in Qdrant.
+        This endpoint accepts text input (a single string or a list of strings) along with optional parameters.
+        The text may be chunked if enabled. Each chunk or text is embedded and, if enabled, saved in Qdrant.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -23,23 +130,31 @@ paths:
               $ref: '#/components/schemas/EmbedRequest'
       responses:
         '200':
-          description: Embeddings generated and saved successfully.
+          description: Embeddings generated successfully.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmbedResponse'
         '400':
-          description: Invalid request (e.g. text is missing).
+          description: Invalid request (e.g. missing input).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /search:
+        '401':
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/search:
     post:
       summary: Search for Similar Text Using Embeddings
       description: |
-        This endpoint accepts a query text, converts it to an embedding, and performs a search in Qdrant
+        This endpoint accepts a query text, converts it to an embedding, and performs a similarity search in Qdrant
         to return the top matching results.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -54,62 +169,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/SearchResponse'
         '400':
-          description: Invalid request (e.g. query is missing).
+          description: Invalid request (e.g. missing query).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-components:
-  schemas:
-    EmbedRequest:
-      type: object
-      properties:
-        text:
-          type: string
-          description: The text to be embedded.
-        collection_name:
-          type: string
-          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
-        payload:
-          type: object
-          description: Additional payload data to be saved with the embedding.
-      required:
-        - text
-    EmbedResponse:
-      type: object
-      properties:
-        embeddings:
-          type: array
-          description: A list of embeddings generated for each text chunk. Each embedding is an array of numbers.
-          items:
-            type: array
-            items:
-              type: number
-    SearchRequest:
-      type: object
-      properties:
-        query:
-          type: string
-          description: The query text for similarity search.
-        collection_name:
-          type: string
-          description: The Qdrant collection name (default: DEFAULT_COLLECTION).
-        top_k:
-          type: integer
-          description: The number of top results to return (default: 3).
-      required:
-        - query
-    SearchResponse:
-      type: object
-      properties:
-        results:
-          type: array
-          description: An array of search results (e.g. texts extracted from payload).
-          items:
-            type: string
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: The error message.

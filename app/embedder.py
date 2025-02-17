@@ -7,7 +7,7 @@ app = Flask(__name__)
 MODEL_NAME = "all-MiniLM-L6-v2"
 model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
-API_KEY = os.getenv("API_KEY", "$2a$10$8E2cnsRvDhLnjxvQK7AJlujKNu324RkimgYJrZ8CeBJ7z1vMH0sJu")
+API_KEY = os.getenv("API_KEY", "my-secret-apikey")
 DEFAULT_CHUNK = os.getenv("DEFAULT_CHUNK", "false").lower() == "true"
 DEFAULT_SAVE_QDRANT = os.getenv("DEFAULT_SAVE_QDRANT", "false").lower() == "true"
 
