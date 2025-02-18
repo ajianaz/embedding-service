@@ -4,7 +4,7 @@ from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search
 import os
 
 app = Flask(__name__)
-MODEL_NAME = "all-MiniLM-L6-v2"
+MODEL_NAME = "paraphrase-MiniLM-L6-v2"
 model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
 API_KEY = os.getenv("API_KEY", "my-secret-apikey")
@@ -56,14 +56,13 @@ def embed():
     if isinstance(save_enabled, str):
         save_enabled = save_enabled.lower() == "true"
 
+    # Jika tidak ingin menyimpan ke Qdrant, kita kumpulkan hasil embedding
     embeddings_results = []
     index = 0
+    processed_count = 0
 
     for text in texts:
-        if not isinstance(text, str):
-            return jsonify({"error": "Each input must be a string"}), 400
-
-        # Proses chunking jika diaktifkan
+        # Jika chunking diaktifkan, bagi input menjadi chunk
         if chunk_enabled:
             try:
                 chunks = chunk_text(text, chunk_size, overlap)
@@ -72,27 +71,40 @@ def embed():
         else:
             chunks = [text]
 
-        try:
-            for chunk in chunks:
+        # Proses setiap chunk satu per satu
+        for chunk in chunks:
+            try:
                 embedding = model.encode(chunk).tolist()
+            except Exception as e:
+                return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
+
+            if save_enabled:
+                # Langsung simpan ke Qdrant tanpa menampung embedding di list (lebih efisien memori)
+                try:
+                    save_to_qdrant(embedding, chunk, collection_name, payload)
+                except Exception as e:
+                    return jsonify({"error": "Failed to save embeddings to Qdrant", "details": str(e)}), 500
+                processed_count += 1
+            else:
+                # Jika tidak menyimpan, kumpulkan hasil embedding
                 embeddings_results.append({
                     "object": "embedding",
                     "embedding": embedding,
                     "index": index
                 })
-                if save_enabled:
-                    try:
-                        save_to_qdrant(embedding, chunk, collection_name, payload)
-                    except Exception as e:
-                        return jsonify({"error": "Failed to save embeddings to Qdrant", "details": str(e)}), 500
                 index += 1
-        except Exception as e:
-            return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
 
-    return jsonify({
-        "object": "list",
-        "data": embeddings_results
-    })
+    # Return respons
+    if save_enabled:
+        return jsonify({
+            "object": "status",
+            "message": f"Processed and saved {processed_count} embedding(s) to Qdrant."
+        })
+    else:
+        return jsonify({
+            "object": "list",
+            "data": embeddings_results
+        })
 
 
 @app.route("/v1/search", methods=["POST"])
