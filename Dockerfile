@@ -1,7 +1,8 @@
-# Stage 1: Build
-FROM python:3.9-slim as builder
+# ---------------------------
+# Stage 1: Build Dependencies
+# ---------------------------
+FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04 as builder
 
-# Hindari penulisan bytecode dan gunakan buffering nonaktif
 ENV PYTHONDONTWRITEBYTECODE=1 \
   PYTHONUNBUFFERED=1
 
@@ -9,15 +10,20 @@ WORKDIR /app
 
 COPY requirements.txt .
 
+# Pastikan requirements.txt mengandung paket GPU-enabled (misalnya, torch versi CUDA)
+RUN apt-get update && apt-get install -y python3-pip && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+# ---------------------------
 # Stage 2: Final Image
-FROM python:3.9-slim
+# ---------------------------
+FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04
 
 WORKDIR /app
 
-COPY --from=builder /install /usr/local
+ENV PATH="/usr/local/bin:${PATH}"
 
+COPY --from=builder /install /usr/local
 COPY . .
 
 EXPOSE 5001
