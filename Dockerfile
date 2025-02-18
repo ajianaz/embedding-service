@@ -1,6 +1,10 @@
 # Stage 1: Build
 FROM python:3.9-slim as builder
 
+# Hindari penulisan bytecode dan gunakan buffering nonaktif
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 COPY requirements.txt .
