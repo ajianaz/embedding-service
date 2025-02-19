@@ -127,4 +127,5 @@ def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3):
         query_vector=embedding,
         limit=top_k
     )
-    return [r.payload["text"] for r in results]
+    # Mengembalikan list dictionary, misalnya:
+    return [{"score": r.score, "text": r.payload.get("text", "")} for r in results]
