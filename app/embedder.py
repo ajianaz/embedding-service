@@ -124,10 +124,8 @@ def search():
     query_embedding = model.encode([query])[0].tolist()
     results = search_in_qdrant(query_embedding, collection_name, top_k)
 
-    formatted_results = [
-        {"object": "search_result", "score": res["score"], "text": res["text"]}
-        for res in results
-    ]
+    # Jika sudah di-format di search_in_qdrant, cukup ambil 'data'
+    formatted_results = results.get("data", [])
 
     return jsonify({"object": "list", "data": formatted_results})
 

@@ -120,12 +120,24 @@ def save_to_qdrant(embedding, text, collection_name=DEFAULT_COLLECTION, payload=
 # Fungsi untuk mencari di Qdrant
 def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3):
     if not QDRANT_ENABLE:
-        return []
-
+        return {"object": "list", "data": []}
+    
     results = qdrant_client.search(
         collection_name=collection_name,
         query_vector=embedding,
         limit=top_k
     )
-    # Mengembalikan list dictionary, misalnya:
-    return [{"score": r.score, "text": r.payload.get("text", "")} for r in results]
+    
+    formatted_results = []
+    for r in results:
+        # Pastikan setiap objek hasil pencarian memiliki id, score, payload (dengan key "text" dan "metadata")
+        formatted_results.append({
+            "object": "search_result",
+            "id": r.id if hasattr(r, 'id') else None,
+            "score": r.score,
+            "text": r.payload.get("text", ""),
+            "metadata": r.payload.get("metadata", {})  # Jika tidak ada metadata, kembalikan dictionary kosong
+        })
+    
+    return {"object": "list", "data": formatted_results}
+
