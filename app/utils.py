@@ -124,7 +124,7 @@ def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3):
 
     results = qdrant_client.search(
         collection_name=collection_name,
-        vector=embedding,
+        query_vector=embedding,
         limit=top_k
     )
     return [r.payload["text"] for r in results]
