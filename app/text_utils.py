@@ -1,30 +1,26 @@
 import re
 import nltk
-
-def download_nltk_resources():
-    """
-    Memastikan bahwa resource NLTK yang dibutuhkan sudah tersedia.
-    Jika belum, resource tersebut akan diunduh.
-    """
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt')
-    try:
-        nltk.data.find('corpora/stopwords')
-    except LookupError:
-        nltk.download('stopwords')
-    try:
-        nltk.data.find('corpora/wordnet')
-    except LookupError:
-        nltk.download('wordnet')
-
-# Pastikan resource sudah tersedia sebelum melakukan operasi NLP
-download_nltk_resources()
-
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+def download_nltk_resources():
+    """
+    Mengunduh resource NLTK yang diperlukan jika belum tersedia.
+    """
+    resources = {
+        'punkt': 'tokenizers/punkt',
+        'stopwords': 'corpora/stopwords',
+        'wordnet': 'corpora/wordnet'
+    }
+    for res, path in resources.items():
+        try:
+            nltk.data.find(path)  # Cek apakah resource sudah terunduh
+        except LookupError:
+            nltk.download(res)  # Unduh jika belum ada
+
+# Panggil fungsi download saat modul di-load
+download_nltk_resources()
 
 # Cache global untuk stopwords berdasarkan bahasa agar tidak memuat ulang setiap kali
 _stopwords_cache = {}
