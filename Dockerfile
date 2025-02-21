@@ -3,7 +3,7 @@ FROM python:3.9-slim as builder
 
 # Hindari penulisan bytecode dan gunakan buffering nonaktif
 ENV PYTHONDONTWRITEBYTECODE=1 \
-  PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -11,11 +11,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+# Buat direktori NLTK agar resource dapat diunduh ke sana
+RUN mkdir -p /root/nltk_data
+
 # Pre-download resource NLTK ke direktori /root/nltk_data
 RUN python -c "import nltk; \
-  nltk.download('punkt', download_dir='/root/nltk_data'); \
-  nltk.download('stopwords', download_dir='/root/nltk_data'); \
-  nltk.download('wordnet', download_dir='/root/nltk_data')"
+    nltk.download('punkt', download_dir='/root/nltk_data'); \
+    nltk.download('stopwords', download_dir='/root/nltk_data'); \
+    nltk.download('wordnet', download_dir='/root/nltk_data')"
 
 # Stage 2: Final Image
 FROM python:3.9-slim
