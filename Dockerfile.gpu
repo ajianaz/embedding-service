@@ -32,8 +32,8 @@ ENV PYTHONPATH=/install/lib/python3.9/site-packages
 # Buat direktori NLTK agar resource dapat diunduh ke sana
 RUN mkdir -p /root/nltk_data
 
-# Pre-download resource NLTK ke direktori /root/nltk_data dengan PYTHONPATH disetel
-RUN PYTHONPATH=/install/lib/python3.9/site-packages python -c "import nltk; \
+# Pre-download resource NLTK ke direktori /root/nltk_data
+RUN python -c "import nltk; \
     nltk.download('punkt_tab', download_dir='/root/nltk_data'); \
     nltk.download('stopwords', download_dir='/root/nltk_data'); \
     nltk.download('wordnet', download_dir='/root/nltk_data')"
