@@ -20,7 +20,7 @@ RUN mkdir -p /root/nltk_data
 
 # Pre-download resource NLTK ke direktori /root/nltk_data
 RUN python -c "import nltk; \
-    nltk.download('punkt', download_dir='/root/nltk_data'); \
+    nltk.download('punkt_tab', download_dir='/root/nltk_data'); \
     nltk.download('stopwords', download_dir='/root/nltk_data'); \
     nltk.download('wordnet', download_dir='/root/nltk_data')"
 

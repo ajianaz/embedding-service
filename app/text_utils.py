@@ -9,7 +9,7 @@ def download_nltk_resources():
     Mengunduh resource NLTK yang diperlukan jika belum tersedia.
     """
     resources = {
-        'punkt': 'tokenizers/punkt',
+        'punkt_tab': 'tokenizers/punkt_tab',
         'stopwords': 'corpora/stopwords',
         'wordnet': 'corpora/wordnet'
     }
@@ -25,12 +25,12 @@ download_nltk_resources()
 # Cache global untuk stopwords berdasarkan bahasa agar tidak memuat ulang setiap kali
 _stopwords_cache = {}
 
-def get_stopwords(language='english'):
+def get_stopwords(language='indonesian'):
     """
     Mengambil daftar stopwords untuk bahasa tertentu dengan caching.
     
     Args:
-        language (str): Bahasa untuk stopwords (default: 'english').
+        language (str): Bahasa untuk stopwords (default: 'indonesian').
         
     Returns:
         set: Kumpulan stopwords untuk bahasa yang diberikan.
@@ -39,13 +39,13 @@ def get_stopwords(language='english'):
         _stopwords_cache[language] = set(stopwords.words(language))
     return _stopwords_cache[language]
 
-def remove_stopwords(text, language='english'):
+def remove_stopwords(text, language='indonesian'):
     """
     Menghapus stopwords dari teks.
     
     Args:
         text (str): Teks input.
-        language (str): Bahasa untuk stopwords (default: 'english').
+        language (str): Bahasa untuk stopwords (default: 'indonesian').
         
     Returns:
         str: Teks tanpa stopwords.

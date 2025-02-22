@@ -111,6 +111,7 @@ def embed():
     chunk_enabled = str_to_bool(data.get("chunk", DEFAULT_CHUNK))
     save_enabled = str_to_bool(data.get("save_to_qdrant", DEFAULT_SAVE_QDRANT))
     optimize_flag = str_to_bool(data.get("optimize_text", DEFAULT_OPTIMIZE_TEXT))
+    optimize_next_step = str_to_bool(data.get("optimize_next_step", "false"))
 
     embeddings_results = []
     processed_count = 0
@@ -124,10 +125,13 @@ def embed():
 
         for chunk in chunks:
             if optimize_flag:
-                # Pipeline optimasi: normalize, hapus stopwords, dan lemmatization
+                # Langkah pertama: normalisasi (lowercase, hapus simbol)
                 chunk = optimize_text(chunk)
-                chunk = remove_stopwords(chunk)
-                chunk = lemmatize_text(chunk)
+                # Jika optimize_next_step aktif, lakukan penghapusan stopwords dan lemmatization
+                if optimize_next_step:
+                    chunk = remove_stopwords(chunk)
+                    chunk = lemmatize_text(chunk)
+
             try:
                 embedding = model.encode(chunk).tolist()
             except Exception as e:
