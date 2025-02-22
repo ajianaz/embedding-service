@@ -7,9 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Salin file requirements dan instal dependency ke direktori /install
 COPY requirements.txt .
+
+# Instal dependency ke direktori /install
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Tambahkan PYTHONPATH agar Python dapat menemukan package yang diinstal
+ENV PYTHONPATH=/install/lib/python3.9/site-packages
 
 # Buat direktori NLTK agar resource dapat diunduh ke sana
 RUN mkdir -p /root/nltk_data
@@ -41,5 +45,4 @@ EXPOSE 5001
 
 ENV WORKERS=1
 
-# Jalankan aplikasi dengan gunicorn
 CMD ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
