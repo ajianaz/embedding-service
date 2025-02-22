@@ -117,20 +117,20 @@ def save_to_qdrant(embedding, text, collection_name=DEFAULT_COLLECTION, payload=
     )
     logger.info(f"✅ Saved data to Qdrant (Collection: {collection_name}, ID: {point_id})")
 
-# Fungsi untuk mencari di Qdrant
-def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3):
+# Fungsi untuk mencari di Qdrant dengan dukungan parameter dinamis tambahan
+def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3, **kwargs):
     if not QDRANT_ENABLE:
         return {"object": "list", "data": []}
     
     results = qdrant_client.search(
         collection_name=collection_name,
         query_vector=embedding,
-        limit=top_k
+        limit=top_k,
+        **kwargs  # Parameter tambahan diteruskan ke fungsi search
     )
     
     formatted_results = []
     for r in results:
-        # Pastikan setiap objek hasil pencarian memiliki id, score, payload (dengan key "text" dan "metadata")
         formatted_results.append({
             "object": "search_result",
             "id": r.id if hasattr(r, 'id') else None,

@@ -166,16 +166,40 @@ def search():
     query = data.get("query", "")
     if not query:
         return jsonify({"error": "Query is required"}), 400
+
     collection_name = data.get("collection", DEFAULT_COLLECTION)
     top_k = int(data.get("top_k", 3))
+    
+    # Ambil parameter score_threshold dari payload (opsional)
+    score_threshold = data.get("score_threshold", None)
+    if score_threshold is not None:
+        try:
+            score_threshold = float(score_threshold)
+        except ValueError:
+            return jsonify({"error": "Invalid score_threshold value, must be numeric."}), 400
+
+    # Kumpulkan parameter tambahan secara dinamis dari payload
+    dynamic_params = {}
+    for key, value in data.items():
+        if key not in ["query", "collection", "top_k", "score_threshold"]:
+            dynamic_params[key] = value
+
     try:
         query_embedding = model.encode([query])[0].tolist()
     except Exception as e:
         logger.error(f"Failed to generate query embedding: {e}")
         return jsonify({"error": "Failed to generate query embedding", "details": str(e)}), 500
-    results = search_in_qdrant(query_embedding, collection_name, top_k)
+
+    # Panggil fungsi pencarian. Misalnya, jika fungsi search_in_qdrant mendukung parameter tambahan.
+    results = search_in_qdrant(query_embedding, collection_name, top_k, **dynamic_params)
     formatted_results = results.get("data", [])
+
+    # Jika score_threshold diberikan, filter hasil dengan score yang memenuhi threshold
+    if score_threshold is not None:
+        formatted_results = [res for res in formatted_results if res.get("score", 0) >= score_threshold]
+
     return jsonify({"object": "list", "data": formatted_results})
+
 
 if test_qdrant_connection():
     logger.info("Qdrant is ready to use")
