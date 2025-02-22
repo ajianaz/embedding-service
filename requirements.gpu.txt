@@ -1,7 +1,8 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
 flask
 sentence-transformers
 gunicorn
 qdrant-client
 python-dotenv
 nltk
-torch==1.13.1+cu117 -f https://download.pytorch.org/whl/torch_stable.html
+torch==1.13.1+cu117

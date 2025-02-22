@@ -24,7 +24,7 @@ RUN ln -s /usr/bin/python3.9 /usr/local/bin/python
 
 # Salin file requirements dan instal dependency ke direktori /install
 COPY requirements.gpu.txt .
-RUN pip3 install --no-cache-dir --prefix=/install -r requirements.gpu.txt
+RUN pip3 install --no-cache-dir --prefix=/install -r requirements.gpu.txt -f https://download.pytorch.org/whl/torch_stable.html
 
 # Set PYTHONPATH agar Python dapat menemukan package yang diinstal
 ENV PYTHONPATH=/install/lib/python3.9/site-packages
