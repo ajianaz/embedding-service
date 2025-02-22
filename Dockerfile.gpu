@@ -4,6 +4,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04 as builder
 # Set non-interactive mode untuk apt-get dan set timezone via ENV
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/GMT
+ENV PATH="/install/bin:${PATH}"
 
 # Hindari penulisan bytecode dan gunakan buffering nonaktif
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,8 +32,8 @@ ENV PYTHONPATH=/install/lib/python3.9/site-packages
 # Buat direktori NLTK agar resource dapat diunduh ke sana
 RUN mkdir -p /root/nltk_data
 
-# Pre-download resource NLTK ke direktori /root/nltk_data
-RUN python -c "import nltk; \
+# Pre-download resource NLTK ke direktori /root/nltk_data dengan PYTHONPATH disetel
+RUN PYTHONPATH=/install/lib/python3.9/site-packages python -c "import nltk; \
     nltk.download('punkt_tab', download_dir='/root/nltk_data'); \
     nltk.download('stopwords', download_dir='/root/nltk_data'); \
     nltk.download('wordnet', download_dir='/root/nltk_data')"
@@ -46,7 +47,7 @@ ENV TZ=Etc/GMT
 
 WORKDIR /app
 
-# Instal Python, tzdata, dan pip di image final, serta set timezone
+# Instal Python, tzdata, dan pip di image final serta set timezone
 RUN apt-get update && \
     apt-get install -y tzdata python3.9 python3-pip && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
