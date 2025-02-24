@@ -1,0 +1,59 @@
+# Stage 1: Build
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04 as builder
+
+# Set non-interactive mode untuk apt-get dan set timezone via ENV
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/GMT
+ENV PATH="/install/bin:${PATH}"
+
+# Hindari penulisan bytecode dan gunakan buffering nonaktif
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Update, instal tzdata, Python 3.9, pip, dan build tools
+RUN apt-get update && \
+    apt-get install -y tzdata && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    apt-get install -y python3.9 python3-pip python3.9-dev build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+# Buat link agar perintah 'python' mengarah ke python3.9
+RUN ln -s /usr/bin/python3.9 /usr/local/bin/python
+
+# Salin file requirements dan instal dependency ke direktori /install
+COPY requirements.gpu.txt .
+RUN pip3 install --no-cache-dir --prefix=/install -r requirements.gpu.txt -f https://download.pytorch.org/whl/torch_stable.html
+
+# Set PYTHONPATH agar Python dapat menemukan package yang diinstal
+ENV PYTHONPATH=/install/lib/python3.9/site-packages
+
+# Stage 2: Final Image
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
+
+# Set non-interactive mode dan timezone via ENV
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/GMT
+
+WORKDIR /app
+
+# Instal Python, tzdata, dan pip di image final serta set timezone
+RUN apt-get update && \
+    apt-get install -y tzdata python3.9 python3-pip && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/bin/python3.9 /usr/local/bin/python
+
+# Salin dependency yang telah diinstal dari builder
+COPY --from=builder /install /usr/local
+
+
+# Salin seluruh kode aplikasi
+COPY . .
+
+EXPOSE 5001
+
+ENV WORKERS=1
+
+CMD ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]
