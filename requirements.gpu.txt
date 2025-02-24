@@ -4,5 +4,4 @@ sentence-transformers
 gunicorn
 qdrant-client
 python-dotenv
-nltk
 torch==1.13.1+cu117
