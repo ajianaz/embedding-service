@@ -7,7 +7,7 @@ from app.text_utils import optimize_text
 
 app = Flask(__name__)
 
-MODEL_NAME = "paraphrase-MiniLM-L6-v2"
+MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
 
