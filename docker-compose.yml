@@ -11,6 +11,8 @@ services:
       - "5001:5001"
     volumes:
       - .:/app  # Sinkronisasi folder `app` dengan container
+      - ./model_cache:/root/.cache/huggingface/transformers  # Persistent cache model
     environment:
       - WORKERS=1
+      - MODEL_NAME=intfloat/multilingual-e5-large-instruct
     command: ["sh", "-c", "gunicorn -w ${WORKERS:-2} -b 0.0.0.0:5001 app.embedder:app"]

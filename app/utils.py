@@ -69,7 +69,7 @@ def test_qdrant_connection():
         return False
 
 # Fungsi untuk membuat collection jika belum ada
-def ensure_collection_exists(collection_name, vector_size):
+def ensure_collection_exists(collection_name, vector_size, distance=Distance.COSINE):
     if not QDRANT_ENABLE:
         return
 
@@ -80,7 +80,7 @@ def ensure_collection_exists(collection_name, vector_size):
         logger.info(f"⚡ Creating collection '{collection_name}'...")
         qdrant_client.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=vector_size, distance=distance),
         )
         logger.info(f"✅ Collection '{collection_name}' created successfully")
 
@@ -129,15 +129,7 @@ def search_in_qdrant(embedding, collection_name=DEFAULT_COLLECTION, top_k=3, **k
         **kwargs  # Parameter tambahan diteruskan ke fungsi search
     )
     
-    formatted_results = []
-    for r in results:
-        formatted_results.append({
-            "object": "search_result",
-            "id": r.id if hasattr(r, 'id') else None,
-            "score": r.score,
-            "text": r.payload.get("text", ""),
-            "metadata": r.payload.get("metadata", {})  # Jika tidak ada metadata, kembalikan dictionary kosong
-        })
-    
-    return {"object": "list", "data": formatted_results}
+    # Mengembalikan hasil pencarian secara langsung tanpa memodifikasi data
+    return {"object": "list", "data": results}
+
 

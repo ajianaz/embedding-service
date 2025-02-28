@@ -2,12 +2,14 @@ import os
 from functools import wraps
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
-from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION
+from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION, ensure_collection_exists
 from app.text_utils import optimize_text
+from qdrant_client.models import Distance
 
 app = Flask(__name__)
 
-MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+# Baca MODEL_NAME dari environment variable, jika tidak ada, gunakan default "intfloat/multilingual-e5-large-instruct"
+MODEL_NAME = os.getenv("MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
 model = SentenceTransformer(MODEL_NAME)
 VECTOR_SIZE = model.get_sentence_embedding_dimension()
 
@@ -66,7 +68,10 @@ def optimize_route():
     text = data.get("text", "")
     if not text:
         return jsonify({"error": "Text is required"}), 400
-    optimized = optimize_text(text)
+
+    # Dapatkan parameter replace_symbols, default False
+    replace_symbols = data.get("replace_symbols", False)
+    optimized = optimize_text(text, replace_symbols)
     return jsonify({
         "object": "optimized_text",
         "text": optimized
@@ -156,6 +161,43 @@ def embed():
     return jsonify({
         "object": "list",
         "data": embeddings_results
+    })
+
+
+@app.route("/v1/collection", methods=["POST"])
+@authenticate
+def create_collection():
+    """
+    Endpoint untuk membuat collection baru di Qdrant.
+    Request JSON harus mengandung:
+      - collection_name (str): Nama collection.
+      - vector_size (int): Ukuran vektor. Default: 384
+      - distance (str, opsional): Metode distance. Default: "COSINE".
+    """
+    data = request.json
+    collection_name = data.get("collection_name")
+    vector_size = data.get("vector_size", 384)
+    distance_str = data.get("distance", "COSINE")
+    
+    if not collection_name is None:
+        return jsonify({"error": "collection_name harus disediakan"}), 400
+
+    try:
+        vector_size = int(vector_size)
+    except Exception as e:
+        return jsonify({"error": "vector_size harus berupa integer", "details": str(e)}), 400
+
+    # Konversi string distance menjadi enum Distance (default COSINE)
+    distance_value = getattr(Distance, distance_str.upper(), Distance.COSINE)
+
+    try:
+        ensure_collection_exists(collection_name, vector_size, distance_value)
+    except Exception as e:
+        return jsonify({"error": "Gagal membuat collection", "details": str(e)}), 500
+
+    return jsonify({
+        "object": "status",
+        "message": f"Collection '{collection_name}' sudah tersedia atau berhasil dibuat."
     })
 
 @app.route("/v1/search", methods=["POST"])
