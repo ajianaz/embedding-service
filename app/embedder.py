@@ -268,9 +268,14 @@ def search():
         except ValueError:
             return jsonify({"error": "Invalid score_threshold value, must be numeric."}), 400
 
-    # Kumpulkan parameter tambahan secara dinamis (kecuali beberapa parameter yang sudah diketahui)
+    # Ambil parameter include_vector dan pastikan merupakan boolean, default False
+    include_vector = data.get("include_vector", False)
+    if isinstance(include_vector, str):
+        include_vector = include_vector.lower() == "true"
+
+    # Kumpulkan parameter tambahan secara dinamis, kecuali parameter yang sudah diketahui
     dynamic_params = { key: value for key, value in data.items() 
-                       if key not in ["query", "collection", "top_k", "score_threshold", "model"] }
+                       if key not in ["query", "collection", "top_k", "score_threshold", "model", "include_vector"] }
 
     try:
         query_embedding = current_model.encode([query])[0].tolist()
@@ -278,7 +283,7 @@ def search():
         logger.error(f"Failed to generate query embedding: {e}")
         return jsonify({"error": "Failed to generate query embedding", "details": str(e)}), 500
 
-    results = search_in_qdrant(query_embedding, collection_name, top_k, **dynamic_params)
+    results = search_in_qdrant(query_embedding, collection_name, top_k, include_vector=include_vector, **dynamic_params)
     formatted_results = results.get("data", [])
     if score_threshold is not None:
         formatted_results = [res for res in formatted_results if res.get("score", 0) >= score_threshold]
