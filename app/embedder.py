@@ -2,18 +2,38 @@ import os
 from functools import wraps
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
-from app.utils import test_qdrant_connection, chunk_text, save_to_qdrant, search_in_qdrant, logger, DEFAULT_COLLECTION, ensure_collection_exists
+from app.utils import (test_qdrant_connection, chunk_text, save_to_qdrant, 
+                       search_in_qdrant, logger, DEFAULT_COLLECTION, ensure_collection_exists)
 from app.text_utils import optimize_text
 from qdrant_client.models import Distance
 
 app = Flask(__name__)
 
-# Baca MODEL_NAME dari environment variable, jika tidak ada, gunakan default "intfloat/multilingual-e5-large-instruct"
-MODEL_NAME = os.getenv("MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
-model = SentenceTransformer(MODEL_NAME)
-VECTOR_SIZE = model.get_sentence_embedding_dimension()
+# Global cache untuk instance model
+models_cache = {}
 
-# Environment Variables
+# Model default, dibaca dari environment variable MODEL_NAME
+DEFAULT_MODEL_NAME = os.getenv("MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
+
+def get_model(model_name=DEFAULT_MODEL_NAME):
+    """
+    Mengembalikan instance model dari cache jika sudah ada, atau memuat model baru dan menyimpannya.
+    """
+    if model_name in models_cache:
+        return models_cache[model_name]
+    try:
+        model = SentenceTransformer(model_name)
+        models_cache[model_name] = model
+        return model
+    except Exception as e:
+        logger.error(f"Failed to load model '{model_name}': {e}")
+        raise e
+
+# Inisialisasi model default dan dapatkan vector size
+default_model = get_model()
+VECTOR_SIZE = default_model.get_sentence_embedding_dimension()
+
+# Environment Variables untuk autentikasi dan konfigurasi lain
 API_KEY = os.getenv("API_KEY", "my-secret-key")
 DEFAULT_CHUNK = os.getenv("DEFAULT_CHUNK", "false")
 DEFAULT_SAVE_QDRANT = os.getenv("DEFAULT_SAVE_QDRANT", "false")
@@ -50,15 +70,29 @@ def process_text(text, chunk_enabled, chunk_size, overlap):
 @app.route("/v1/models", methods=["GET"])
 @authenticate
 def list_models():
+    """
+    Endpoint untuk menampilkan daftar model yang tersedia.
+    Jika environment variable MODELS_LIST disediakan (misalnya: "model1, model2, model3"),
+    maka akan menampilkan daftar tersebut. Jika tidak, maka akan menampilkan model yang sudah
+    dimuat dalam cache. Jika cache kosong, maka akan menggunakan default model.
+    """
+    models_from_env = os.getenv("MODELS_LIST")
+    if models_from_env:
+        models = [m.strip() for m in models_from_env.split(",") if m.strip()]
+    else:
+        models = list(models_cache.keys())
+        if not models:
+            models = [DEFAULT_MODEL_NAME]
+    
+    response_data = [{
+        "id": model_name,
+        "object": "model",
+        "owned_by": "ajianaz-dev"
+    } for model_name in models]
+    
     return jsonify({
         "object": "list",
-        "data": [
-            {
-                "id": MODEL_NAME,
-                "object": "model",
-                "owned_by": "ajianaz-dev"
-            }
-        ]
+        "data": response_data
     })
 
 @app.route("/v1/optimize", methods=["POST"])
@@ -69,8 +103,12 @@ def optimize_route():
     if not text:
         return jsonify({"error": "Text is required"}), 400
 
-    # Dapatkan parameter replace_symbols, default False
+    # Dapatkan parameter replace_symbols, default False (bisa berupa boolean atau string)
     replace_symbols = data.get("replace_symbols", False)
+    # Jika parameter berupa string, konversi ke boolean
+    if isinstance(replace_symbols, str):
+        replace_symbols = replace_symbols.lower() == "true"
+
     optimized = optimize_text(text, replace_symbols)
     return jsonify({
         "object": "optimized_text",
@@ -101,7 +139,14 @@ def chunk_route():
 def embed():
     data = request.json
 
-    # Validasi input (harus string atau list)
+    # Pilih model berdasarkan parameter request, jika tidak ada gunakan default
+    model_name = data.get("model", DEFAULT_MODEL_NAME)
+    try:
+        current_model = get_model(model_name)
+    except Exception as e:
+        return jsonify({"error": f"Failed to load model '{model_name}'", "details": str(e)}), 500
+
+    # Validasi input (harus string atau list of strings)
     input_text = data.get("input", "")
     if not isinstance(input_text, (str, list)):
         return jsonify({"error": "Input text must be a string or list of strings"}), 400
@@ -129,11 +174,10 @@ def embed():
 
         for chunk in chunks:
             if optimize_flag:
-                # Langkah pertama: normalisasi (lowercase, hapus simbol)
                 chunk = optimize_text(chunk)
 
             try:
-                embedding = model.encode(chunk).tolist()
+                embedding = current_model.encode(chunk).tolist()
             except Exception as e:
                 logger.error(f"Failed to generate embeddings: {e}")
                 return jsonify({"error": "Failed to generate embeddings", "details": str(e)}), 500
@@ -163,7 +207,6 @@ def embed():
         "data": embeddings_results
     })
 
-
 @app.route("/v1/collection", methods=["POST"])
 @authenticate
 def create_collection():
@@ -171,7 +214,7 @@ def create_collection():
     Endpoint untuk membuat collection baru di Qdrant.
     Request JSON harus mengandung:
       - collection_name (str): Nama collection.
-      - vector_size (int): Ukuran vektor. Default: 384
+      - vector_size (int): Ukuran vektor. Default: 384.
       - distance (str, opsional): Metode distance. Default: "COSINE".
     """
     data = request.json
@@ -179,7 +222,7 @@ def create_collection():
     vector_size = data.get("vector_size", 384)
     distance_str = data.get("distance", "COSINE")
     
-    if not collection_name is None:
+    if collection_name is None:
         return jsonify({"error": "collection_name harus disediakan"}), 400
 
     try:
@@ -208,10 +251,16 @@ def search():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
+    # Pilih model berdasarkan parameter request, jika tidak gunakan default
+    model_name = data.get("model", DEFAULT_MODEL_NAME)
+    try:
+        current_model = get_model(model_name)
+    except Exception as e:
+        return jsonify({"error": f"Failed to load model '{model_name}'", "details": str(e)}), 500
+
     collection_name = data.get("collection", DEFAULT_COLLECTION)
     top_k = int(data.get("top_k", 3))
     
-    # Ambil parameter score_threshold dari payload (opsional)
     score_threshold = data.get("score_threshold", None)
     if score_threshold is not None:
         try:
@@ -219,34 +268,28 @@ def search():
         except ValueError:
             return jsonify({"error": "Invalid score_threshold value, must be numeric."}), 400
 
-    # Kumpulkan parameter tambahan secara dinamis dari payload
-    dynamic_params = {}
-    for key, value in data.items():
-        if key not in ["query", "collection", "top_k", "score_threshold"]:
-            dynamic_params[key] = value
+    # Kumpulkan parameter tambahan secara dinamis (kecuali beberapa parameter yang sudah diketahui)
+    dynamic_params = { key: value for key, value in data.items() 
+                       if key not in ["query", "collection", "top_k", "score_threshold", "model"] }
 
     try:
-        query_embedding = model.encode([query])[0].tolist()
+        query_embedding = current_model.encode([query])[0].tolist()
     except Exception as e:
         logger.error(f"Failed to generate query embedding: {e}")
         return jsonify({"error": "Failed to generate query embedding", "details": str(e)}), 500
 
-    # Panggil fungsi pencarian. Misalnya, jika fungsi search_in_qdrant mendukung parameter tambahan.
     results = search_in_qdrant(query_embedding, collection_name, top_k, **dynamic_params)
     formatted_results = results.get("data", [])
-
-    # Jika score_threshold diberikan, filter hasil dengan score yang memenuhi threshold
     if score_threshold is not None:
         formatted_results = [res for res in formatted_results if res.get("score", 0) >= score_threshold]
 
     return jsonify({"object": "list", "data": formatted_results})
-
 
 if test_qdrant_connection():
     logger.info("Qdrant is ready to use")
 else:
     logger.warning("Qdrant is not available, some features may not work")
 
-# Uncomment baris berikut untuk menjalankan server secara langsung (local testing)
+# Uncomment baris di bawah untuk menjalankan server secara langsung (local testing)
 # if __name__ == "__main__":
 #     app.run(host="0.0.0.0", port=5001, debug=True)
