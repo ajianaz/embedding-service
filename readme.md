@@ -225,6 +225,7 @@ The service uses the following environment variables (with defaults):
 - **`API_KEY`**: Secret key for bearer authentication (default: `"my-secret-key"`).
 - **`DEFAULT_CHUNK`**: Enable text chunking by default (`true` or `false`, default is `false`).
 - **`DEFAULT_SAVE_QDRANT`**: Enable saving embeddings to Qdrant by default (`true` or `false`, default is `false`).
+- **`OPTIMIZE_TEXT`**: Enable text optimization (normalization, stopword removal, and lemmatization) by default (`true` or `false`, default is `false`).
 
 ---
 
